@@ -1,0 +1,331 @@
+C51 COMPILER V9.52.0.0   I2C                                                               09/10/2017 12:03:09 PAGE 1   
+
+
+C51 COMPILER V9.52.0.0, COMPILATION OF MODULE I2C
+OBJECT MODULE PLACED IN i2c.OBJ
+COMPILER INVOKED BY: D:\c51v952\C51\BIN\C51.EXE i2c.c LARGE BROWSE DEBUG OBJECTEXTEND TABS(2)
+
+line level    source
+
+   1          
+   2          #include "i2c.h"
+   3          //mpu6050定义  
+   4          
+   5          
+   6          
+   7          
+   8          
+   9          //应答标志位
+  10          bit ack;
+  11          unsigned char recc,BUF[14];
+  12          
+  13          //延时函数
+  14          //void delay_us(unsigned char us)
+  15          //{
+  16          //  int j1,j2;
+  17          //  for( j1=0;j1<us;j1++)
+  18          //  {
+  19          //    for(j2=0;j2<30;j2++);
+  20          //  }
+  21          //}
+  22          
+  23          
+  24          
+  25          
+  26          
+  27          
+  28          /***************  启动总线 ******************/
+  29          
+  30          void start_I2c()
+  31          {
+  32   1        SDA=1;
+  33   1        SCL=1;
+  34   1        NOP30();
+  35   1        NOP30();
+  36   1        NOP30();
+  37   1        NOP30();
+  38   1        SDA=0;
+  39   1        NOP30();
+  40   1        NOP30();
+  41   1        NOP30();
+  42   1        NOP30();
+  43   1        SCL=0;
+  44   1        NOP30();
+  45   1        NOP30();
+  46   1        NOP30();
+  47   1        NOP30();
+  48   1      
+  49   1      }
+  50          
+  51          
+  52          /*****************结束I2c*******************/
+  53          
+  54          void stop_I2c()
+  55          {
+C51 COMPILER V9.52.0.0   I2C                                                               09/10/2017 12:03:09 PAGE 2   
+
+  56   1        SDA=0;
+  57   1        SCL=1;
+  58   1        NOP30();
+  59   1        NOP30();
+  60   1        NOP30();
+  61   1        NOP30();
+  62   1        SDA=1;
+  63   1        NOP30();
+  64   1        NOP30();
+  65   1        NOP30();
+  66   1        NOP30();
+  67   1      
+  68   1      }
+  69          
+  70          
+  71          /**********字节发送函数**********/
+  72          
+  73          void send_bite(unsigned char c)
+  74          {
+  75   1        unsigned char  unbit;
+  76   1        for(unbit=0;unbit<8;unbit++)
+  77   1        {
+  78   2          c <<= 1;
+  79   2          SDA = CY; 
+  80   2          SCL=1;
+  81   2          NOP30();
+  82   2          NOP30();
+  83   2          NOP10();
+  84   2          SCL=0;
+  85   2          NOP30();
+  86   2          NOP30();
+  87   2          NOP10();
+  88   2         }
+  89   1      }
+  90          
+  91          /*****************字节接收函数***********/
+  92          
+  93          unsigned char   rec_bite(void)
+  94          {
+  95   1        unsigned char unbit,recc;
+  96   1        recc=0;
+  97   1        SDA=1;
+  98   1        for(unbit=0;unbit<8;unbit++)
+  99   1        {
+ 100   2              recc <<= 1;
+ 101   2              SCL = 1;                //拉高时钟线
+ 102   2              NOP30();
+ 103   2              NOP30();
+ 104   2              NOP10();
+ 105   2              recc |= SDA;             //读数据
+ 106   2              SCL = 0;                //拉低时钟线
+ 107   2              NOP30();
+ 108   2              NOP30();
+ 109   2              NOP10();
+ 110   2         }
+ 111   1        // P12=0;
+ 112   1         return recc;
+ 113   1      }
+ 114          /****************应答子函数***************/
+ 115          void Ack_I2c(void )
+ 116          {
+ 117   1        SDA=0;
+C51 COMPILER V9.52.0.0   I2C                                                               09/10/2017 12:03:09 PAGE 3   
+
+ 118   1        SCL=1;
+ 119   1        NOP30();
+ 120   1        NOP30();
+ 121   1        NOP10();
+ 122   1        SCL=0;
+ 123   1        NOP30();
+ 124   1        NOP30();
+ 125   1        NOP10();
+ 126   1      }
+ 127          
+ 128          ///****************非应答子函数***************/
+ 129          void UnAck_I2c(void )
+ 130          {
+ 131   1        SDA=1;
+ 132   1        SCL=1;
+ 133   1        NOP30();
+ 134   1        NOP30();
+ 135   1        NOP10();
+ 136   1        SCL=0;
+ 137   1        NOP30();
+ 138   1        NOP30();
+ 139   1        NOP10();
+ 140   1      }
+ 141          ///*************等待应答结果*****************/
+ 142          void Wake_I2c(void )
+ 143          {
+ 144   1        SDA=1;
+ 145   1        SCL=1;
+ 146   1        NOP30();
+ 147   1        NOP30();
+ 148   1        NOP10();
+ 149   1        ack=SDA;
+ 150   1        SCL=0;
+ 151   1        NOP30();
+ 152   1        NOP30();
+ 153   1        NOP10();
+ 154   1      
+ 155   1      }
+ 156          /**************多字节发送*******************/
+ 157          void send_I2c(unsigned char cadress,unsigned char date)
+ 158          {
+ 159   1        start_I2c();
+ 160   1        send_bite(SlaveAddressW);
+ 161   1       Wake_I2c();
+ 162   1        send_bite(cadress);
+ 163   1        Wake_I2c();
+ 164   1        send_bite(date);
+ 165   1        Wake_I2c();
+ 166   1      
+ 167   1               
+ 168   1          stop_I2c();
+ 169   1      
+ 170   1        
+ 171   1      
+ 172   1      }
+ 173          /*************多字节接收*********************/
+ 174          void rec_I2c(unsigned char cadress,unsigned char *BUF)
+ 175          {
+ 176   1        unsigned char i;
+ 177   1          start_I2c();
+ 178   1          send_bite(SlaveAddressW);
+ 179   1          Wake_I2c();
+C51 COMPILER V9.52.0.0   I2C                                                               09/10/2017 12:03:09 PAGE 4   
+
+ 180   1          send_bite(cadress);
+ 181   1        Wake_I2c();
+ 182   1          start_I2c();
+ 183   1          send_bite(SlaveAddressR);
+ 184   1        Wake_I2c();
+ 185   1          for(i=0; i<13; i++)
+ 186   1        {
+ 187   2          BUF[i] = rec_bite();       //读出寄存器数据
+ 188   2          Ack_I2c();
+ 189   2        }
+ 190   1          BUF[i] = rec_bite();  //最后一个字节
+ 191   1          UnAck_I2c();
+ 192   1          stop_I2c();                    //停止信号
+ 193   1      }
+ 194          /*读取8位寄存器多个字节 
+ 195           * @参数 addr    I2C从器件内部地址 
+ 196           * @参数 length  写入数据长度     
+ 197           * @参数 Data    保存数据的地址       
+ 198           * @返回值 返回状态 (1=成功) 
+ 199           */  
+ 200          void  recs_I2c(unsigned char addr,unsigned char length,unsigned char *Data)  
+ 201          {  
+ 202   1              unsigned char i;  
+ 203   1              start_I2c();    //起始信号  
+ 204   1              send_bite(SlaveAddressW);    //设备地址+写信号  
+ 205   1              Wake_I2c();
+ 206   1              send_bite(addr);    //设备内部地址  
+ 207   1              Wake_I2c(); 
+ 208   1              start_I2c();    //起始信号  
+ 209   1              send_bite(SlaveAddressR);  //设备地址+读信号  
+ 210   1              Wake_I2c();  
+ 211   1              for(i=0;i<length-1;i++)  
+ 212   1              {  
+ 213   2                  Data[i]= rec_bite();
+ 214   2                   Ack_I2c();         //读取数据,发送ACK  
+ 215   2              }  
+ 216   1              Data[length] = rec_bite();//读取数据,发送NAK  
+ 217   1              UnAck_I2c();
+ 218   1              stop_I2c();    //停止信号  
+ 219   1      }  
+ 220          /**写入8位寄存器的一个位。 
+ 221           * @参数 addr    I2C从器件内部地址 
+ 222           * @参数 bitNum  写入的比特位(0-7)      
+ 223           * @参数 data    写入数据       
+ 224           * @返回值 返回状态 (1=成功) 
+ 225           */  
+ 226          void  writeBit(unsigned char addr,unsigned char bitNum,unsigned char Data)  
+ 227          {  
+ 228   1          unsigned char b;  
+ 229   1          recs_I2c(addr,1,&b); 
+ 230   1          b = (Data != 0) ? (b | (1 << bitNum)):(b & ~(1 << bitNum));   
+ 231   1          send_I2c(addr,b);    //写入数据  
+ 232   1       
+ 233   1      }  
+ 234          /**写入8位寄存器的多个位。   
+ 235           * @参数 addr     I2C从器件内部地址 
+ 236           * @参数 bitStart 第一位的写入位置（0-7） 
+ 237           * @参数 length   写的比特数(不超过8) 
+ 238           * @参数 Data     写入数据 
+ 239           * @返回值 返回状态 (1=成功) 
+ 240           */  
+ 241          void writeBits(unsigned char addr,unsigned char bitStart,unsigned char length,unsigned char Data)  
+C51 COMPILER V9.52.0.0   I2C                                                               09/10/2017 12:03:09 PAGE 5   
+
+ 242          {   
+ 243   1          unsigned char bb,masks=0;  
+ 244   1              recs_I2c(addr,1,&bb);
+ 245   1              masks = (((1<<length) - 1) << (bitStart-length + 1));    //掩码  
+ 246   1              Data <<=(bitStart - length + 1);  //把写入的数据移动到位  
+ 247   1              Data &= masks;  
+ 248   1              bb &= ~(masks);  
+ 249   1              bb |= Data;  
+ 250   1              send_I2c(addr,bb);   //写入数据  
+ 251   1              
+ 252   1      }  
+ 253          /**读取一个位从8位器件的寄存器。     */  
+ 254          void readBit(unsigned char addr,unsigned char bitNum,unsigned char *Data)  
+ 255          {  
+ 256   1          unsigned char bbb;  
+ 257   1          recs_I2c(addr,1,&bbb) ;
+ 258   1          *Data = bbb & (1 << bitNum);  
+ 259   1      }  
+ 260          /**读取8位寄存器的多个位。  
+ 261          * @参数 addr    I2C从器件内部地址  
+ 262          * @参数 bitStart第一位的位置读取（0-7）  
+ 263          * @参数 length  位读取@参数长度数（不超过8）  
+ 264          * @参数 *data   数据存储地址（即'101'任何bitStart位置读取将等于0X05）  
+ 265          * @返回值（1=成功）  
+ 266          */  
+ 267          void readBits(unsigned char addr,unsigned char bitStart,unsigned char length,unsigned char *Data)  
+ 268          {  
+ 269   1          unsigned char c,maskss=0;  
+ 270   1          recs_I2c(addr,1,&c)   ;  
+ 271   1          maskss = ((1 << length) - 1) << (bitStart - length + 1);  
+ 272   1          c &= maskss;  
+ 273   1          c >>= (bitStart - length + 1);  
+ 274   1          *Data = c;  
+ 275   1      }  
+ 276            
+ 277          /***********启动MPU6050******************/
+ 278          void init_MPU6050(void)
+ 279          {
+ 280   1        send_I2c(PWR_MGMT_1,0x00);
+ 281   1        send_I2c(SMPLRT_DIV,0x07);
+ 282   1        send_I2c(CONFIG,0x04);
+ 283   1        send_I2c(GYRO_CONFIG,0x08);             ////////0x18                       500
+ 284   1        send_I2c(ACCEL_CONFIG,0x08);              //////0x01                        
+ 285   1      }
+ 286          //void init_MPU6050(void)  
+ 287          //{  
+ 288          //    writeBits (0x6B,2,3,0x01);  //电源管理  
+ 289          //    writeBits (0x1B,4,2,0x00);  //设置陀螺仪量程 250/s  
+ 290          //    writeBits (0x1C,4,2,0x00);  //设置加速度量程 2G  
+ 291          //    writeBit (0x6B,6,1);    //电源管理MUP进入睡眠模式  
+ 292          //}  
+ 293          /**********读取MPU6050数据****************/
+ 294          void read_MPU6050(void)
+ 295          {
+ 296   1        rec_I2c(ACCEL_XOUT_H,BUF);
+ 297   1      
+ 298   1       }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   2045    ----
+   CONSTANT SIZE    =   ----    ----
+C51 COMPILER V9.52.0.0   I2C                                                               09/10/2017 12:03:09 PAGE 6   
+
+   XDATA SIZE       =     15      27
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      1    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

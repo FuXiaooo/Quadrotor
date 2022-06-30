@@ -1,0 +1,359 @@
+C51 COMPILER V9.52.0.0   MAIN                                                              09/10/2017 12:03:09 PAGE 1   
+
+
+C51 COMPILER V9.52.0.0, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN main.OBJ
+COMPILER INVOKED BY: D:\c51v952\C51\BIN\C51.EXE main.c LARGE BROWSE DEBUG OBJECTEXTEND TABS(2)
+
+line level    source
+
+   1          
+   2          
+   3          #define MAIN_Fosc   30000000L //定义主时钟
+   4          #define S2RI 0x1  //串口2的接收到标志
+   5          #define S2TI 0x2  //串口2的发送完标志
+   6          
+   7          #define EAXSFR()    P_SW2 |=  0x80  /* MOVX A,@DPTR/MOVX @DPTR,A指令的操作对象为扩展SFR(XSFR) */
+   8          #define UART_8bit_BRTx  (1<<6)  //8位数据,可变波特率
+   9          #define UART1_SW_P30_P31  0
+  10          #define BRT_Timer2  2
+  11          
+  12          
+  13          
+  14          
+  15          #include <stdio.h>
+  16          #include <math.h>
+  17          #include <intrins.h>
+  18          #include  "STC15Fxxxx.H"
+  19          #include <i2c.h>
+  20          #include <DataScope_DP.h> 
+  21          #include <IMU.h>
+  22          
+  23          
+  24          unsigned char Send_Count,ii; 
+  25          code float a[180]={0,0.017,0.035,0.052,0.070,0.087,0.105,0.122,0.139,0.156,0.174,0.191,0.208,0.225,0.242,0
+             -.259,
+  26                             0.276,0.292,0.309,0.326,0.342,0.358,0.375,0.391,0.407,0.423,0.438,0.454,0.469,0.485,0.5,
+  27                             0.515,0.530,0.545,0.559,0.574,0.588,0.602,0.616,0.629,0.643,0.656,0.669,0.682,0.695,0.7
+             -07,
+  28                             0.719,0.731,0.743,0.755,0.766,0.777,0.788,0.799,0.809,0.819,0.829,0.839,0.848,0.857,0.8
+             -66,
+  29                             0.874,0.883,0.891,0.899,0.906,0.914,0.921,0.927,0.934,0.940,0.946,0.951,0.956,0.961,0.9
+             -70,
+  30                             0.970,0.974,0.978,0.981,0.985,0.988,0.990,0.993,0.995,0.996,0.998,0.999,0.999,1,1};
+  31          
+  32          
+  33          
+  34          
+  35          
+  36          //u8  xdata RxBuf[20]={0};
+  37          //u8 SW2_tmp,SSBU1,SSBU2,FLAG1,n,n1,n2,SSBU;
+  38          u8 up,ex_yaw,ex_pitch,ex_roll,key,keyt;//傅肖给定数据
+  39          bit begin;
+  40          //u8 yyhg,fggd,ZS1,ZS2,rc_pitch,rc_roll,rc_yaw,rc_gyro_x,rc_gyro_y,rc_gyro_z; //易毅测量到的数据  
+  41          u8 TH0_TEMP,TL0_TEMP,temp;  
+  42          //u16 dj3,dj2,dj1,dj4;
+  43          u16 i,i1,i2,i1f,TTT3,TTT1,TTT2;
+  44          u32 TIM_Value,j1;
+  45          
+  46          //float i1;
+  47          float ax,ay,az,gx,gy,gz;
+  48          
+  49          void main()
+  50          {   begin=1;
+  51   1          pitch0=0;
+C51 COMPILER V9.52.0.0   MAIN                                                              09/10/2017 12:03:09 PAGE 2   
+
+  52   1          roll0=0;
+  53   1          yaw0=0;
+  54   1          ax=0;
+  55   1          ay=0;
+  56   1          az=0;
+  57   1          gx=0;
+  58   1          gy=0;
+  59   1          gz=0;
+  60   1         for(i=0;i<2000;i++);
+  61   1          //串口1初始化 波特率38400  T2作为波特率发生器
+  62   1          j1 = (MAIN_Fosc / 4) /38400;  //按1T计算
+  63   1          j1= 65536UL - j1;
+  64   1              AUXR &= ~(1<<4);  //Timer2 stop   
+  65   1          AUXR &= ~(1<<3);  //Timer2 set As Timer
+  66   1          AUXR |=  (1<<2);  //Timer2 set as 1T mode
+  67   1          T2H = (u8)(j1>>8);
+  68   1          T2L = (u8)j1;
+  69   1          IE2  &= ~(1<<2);  //禁止中断
+  70   1          AUXR &= ~(1<<3);  //定时
+  71   1          AUXR |=  (1<<4);  //Timer2 run enable
+  72   1        
+  73   1          SCON = (SCON & 0x3f) | UART_8bit_BRTx;
+  74   1          AUXR |= 0x01;   //S1 BRT Use Timer2;  
+  75   1          REN = 1;  //允许接收
+  76   1          P_SW1 = (P_SW1 & 0x3f) | (UART1_SW_P30_P31 & 0xc0); //切换IO
+  77   1         CLK_DIV &= ~(1<<4);//串口1正常工作方式
+  78   1         
+  79   1          //串口2初始化 波特率38400
+  80   1        // AUXR= 0X14;  //串口2初始化 波特率38400要改成与或非
+  81   1         S2CON= 0X10;
+  82   1        // T2L=(65536-(MAIN_Fosc/4/38400));//公用定时器2吗？
+  83   1         // T2H=(65536-(MAIN_Fosc/4/38400))>>8;
+  84   1         
+  85   1            SBUF=0x01;while(1){if(TI==1){TI=0;TI=TI;break;}}
+  86   1            SBUF=0x02;while(1){if(TI==1){TI=0;TI=TI;break;}}
+  87   1            SBUF=0xfA;while(1){if(TI==1){TI=0;TI=TI;break;}}
+  88   1            
+  89   1      
+  90   1                      
+  91   1            //T0 定时器初始化
+  92   1              TR0 = 0;    //停止计数
+  93   1              TMOD &= ~0x03;  //工作模式,0: 16位自动重装, 1: 16位定时/计数, 2: 8位自动重装, 3: 16位自动重装, 不可屏蔽
+             -中断
+  94   1              AUXR |=  0x80;  //1T
+  95   1              TMOD &= ~0x04;  //定时
+  96   1        
+  97   1              INT_CLKO &= ~0x01;  //T0不输出时钟 T0定时器延时
+  98   1              TIM_Value= 65536UL -60000;    //初值
+  99   1          TH0_TEMP = (u8)(TIM_Value >> 8);
+ 100   1          TL0_TEMP = (u8)TIM_Value;
+ 101   1          TH0=TH0_TEMP;
+ 102   1          TL0=TL0_TEMP;
+ 103   1          TR0 = 1;  //开始运行  
+ 104   1          //ET0 = 1;  //允许中断
+ 105   1          EA = 1; //允许中断
+ 106   1          ES=0;
+ 107   1        
+ 108   1          i=0;
+ 109   1      //    i1=0;i1f=0;i1p=0; i2=0,i3=0;i4=0,i5=0,i6=0,i7=0,i8=0;
+ 110   1      //    RxBuf[0]=0; RxBuf[1]=0; RxBuf[2]=0; RxBuf[3]=0;
+ 111   1          
+ 112   1          
+C51 COMPILER V9.52.0.0   MAIN                                                              09/10/2017 12:03:09 PAGE 3   
+
+ 113   1          
+ 114   1          //初始化6050
+ 115   1          init_MPU6050();
+ 116   1      //     dmpInitialize(); //加载并配置运动库                
+ 117   1      //    writeBit(0x6A,2,1); //复位 FIFO  
+ 118   1      //    writeBit(0x6A,7,1); //使能DMP  
+ 119   1       for(i=0;i<60000;i++);
+ 120   1       for(i=0;i<60000;i++);
+ 121   1       for(i=0;i<60000;i++);
+ 122   1       for(i=0;i<60000;i++);
+ 123   1       for(i=0;i<60000;i++);
+ 124   1       for(i=0;i<60000;i++);
+ 125   1       for(i=0;i<60000;i++);
+ 126   1       for(i=0;i<60000;i++);
+ 127   1       for(i=0;i<60000;i++);
+ 128   1       for(i=0;i<60000;i++);
+ 129   1       for(i=0;i<60000;i++);
+ 130   1       for(i=0;i<60000;i++);
+ 131   1      
+ 132   1          i2=0;
+ 133   1          
+ 134   1          
+ 135   1           while(1)
+ 136   1          {     
+ 137   2                      if(TF0)
+ 138   2                  { TF0=0;
+ 139   3                  
+ 140   3                  TTT1=TTT1+1;
+ 141   3                  TTT2=TTT2+1;
+ 142   3                  TTT3=TTT3+1;
+ 143   3              
+ 144   3             }
+ 145   2              
+ 146   2                    switch (i2)
+ 147   2                  {  case 0:TTT1=0;i2=10;break;
+ 148   3                    case  10:if(TTT1>4)i2=30;             
+ 149   3                    break;
+ 150   3                    case 30:  
+ 151   3                      smoothing1();
+ 152   3                      dealdata();               
+ 153   3                      IMUupdate(Angle_gx,Angle_gy,Angle_gz,Angle_ax,Angle_ay,Angle_az);
+ 154   3                      DataScope_Get_Channel_Data(pitch, 1 );
+ 155   3                      DataScope_Get_Channel_Data(roll, 2 );
+ 156   3                      DataScope_Get_Channel_Data(yaw, 3 );
+ 157   3                      Send_Count = DataScope_Data_Generate(3);
+ 158   3                     
+ 159   3                 //     if(begin){pitch0=pitch;roll0=roll;yaw0=yaw;begin=0;}              
+ 160   3                     for( ii = 0 ; ii < Send_Count; ii++) 
+ 161   3                         {
+ 162   4           
+ 163   4                                SBUF = DataScope_OutPut_Buffer[ii]; 
+ 164   4                              while(1){if(TI==1){TI=0;TI=TI;break;}}
+ 165   4                            }
+ 166   3                          i2=40;
+ 167   3                    break;
+ 168   3                    case 40:i2=0;break;
+ 169   3                  }
+ 170   2          
+ 171   2                            
+ 172   2      //            switch(i1)//串口1 读易毅MPU6050 实际姿态
+ 173   2      //            {   
+ 174   2      //              
+C51 COMPILER V9.52.0.0   MAIN                                                              09/10/2017 12:03:09 PAGE 4   
+
+ 175   2      //               case 0:if(RI)
+ 176   2      //                      {   SSBU=SBUF;RI=0;if (SSBU==0XFB)i1=15;else i1=0;break;} break;                      
+ 177   2      //                case 15:if(RI)//俯仰角pitch
+ 178   2      //                       {  rc_pitch=SBUF;RI=0;i1=20;break;}  break;                      
+ 179   2      //                case 20:if(RI)//横滚roll
+ 180   2      //                       {rc_roll=SBUF;RI=0;i1=25;break;}break;
+ 181   2      //                case 25:if(RI)//偏航yaw
+ 182   2      //                       {rc_yaw=SBUF;RI=0;i1=30;break;}break;
+ 183   2      //                case 30:if(RI)//绕x轴角速度
+ 184   2      //                       {rc_gyro_x=SBUF;RI=0;i1=35;break;}break;
+ 185   2      //                case 35:if(RI)//绕y轴角速度
+ 186   2      //                       {rc_gyro_y=SBUF;RI=0;i1=40;break;}break;
+ 187   2      //               case 40:if(RI)//绕z轴角速度
+ 188   2      //                       {rc_gyro_z=SBUF;RI=0;i1=45;break;}break;    
+ 189   2      //                case 45:if(RI)
+ 190   2      //                       {SSBU=SBUF;RI=0;if(SSBU==0XFE){i1=0;}else i1=0;break;}break;
+ 191   2      //              
+ 192   2      //                     }
+ 193   2        
+ 194   2                  
+ 195   2      //           switch(i2)//串口2 P1.0 P1.1  读遥控给定姿态及油门
+ 196   2      //          { 
+ 197   2      //                case 0:if(S2CON & S2RI)
+ 198   2      //                      { S2CON&=~S2RI; SSBU2=S2BUF;if (SSBU2==0XFB)i2=15;else i2=0;break;} break;                    
+             -  
+ 199   2      //                case 15:if(S2CON & S2RI)//up油门
+ 200   2      //                       {S2CON&=~S2RI; up=S2BUF;i2=20;break;}  break;                      
+ 201   2      //                case 20:if(S2CON & S2RI)//ex_yaw 偏航
+ 202   2      //                       {S2CON&=~S2RI;ex_yaw=S2BUF;i2=25;break;}break;
+ 203   2      //                case 25:if(S2CON & S2RI)//ex_pitch 前后倾
+ 204   2      //                       {S2CON&=~S2RI;ex_pitch=S2BUF;i2=30;break;}break;
+ 205   2      //                case 30:if(S2CON & S2RI)//ex_roll 横滚
+ 206   2      //                       {S2CON&=~S2RI;ex_roll=S2BUF;i2=35;break;}break;
+ 207   2      //                case 35:if(S2CON & S2RI)//键
+ 208   2      //                       {S2CON&=~S2RI;key=S2BUF;i2=40;break;}break;
+ 209   2      //               case 40:if(S2CON & S2RI)//特殊命令
+ 210   2      //                       {S2CON&=~S2RI;keyt=S2BUF;i2=45;break;}break;    
+ 211   2      //                case 45:if(S2CON & S2RI)
+ 212   2      //                       {S2CON&=~S2RI;SSBU2=S2BUF;if(SSBU2==0XFE){i2=0;}else i2=0;break;}break;
+ 213   2      //                
+ 214   2      //          
+ 215   2      //              }
+ 216   2                
+ 217   2               //      read_MPU6050();
+ 218   2                //      dealdata();
+ 219   2                //      IMUupdate(Angle_ax,Angle_ay,Angle_az,Angle_gx,Angle_gy,Angle_gz);
+ 220   2                     //   P12=1;
+ 221   2                     
+ 222   2      //      
+ 223   2      
+ 224   2       
+ 225   2        
+ 226   2      
+ 227   2      
+ 228   2      
+ 229   2      
+ 230   2       //compute ();
+ 231   2      
+ 232   2      
+ 233   2      
+ 234   2          //  i1=i1+0.1;
+ 235   2      //if(i1>3.14) i1=-3.14;
+C51 COMPILER V9.52.0.0   MAIN                                                              09/10/2017 12:03:09 PAGE 5   
+
+ 236   2                    //  if((BUF[8]*256+BUF[9])>=32768) aa=(float)((BUF[8]*256+BUF[9])-65536)/16.5;
+ 237   2                  //    else  aa= (float)(BUF[8]*256+BUF[9])/16.5;
+ 238   2                  //      DataScope_Get_Channel_Data(pitch, 1 );
+ 239   2      //DataScope_Get_Channel_Data(100*tan(a), 2 );
+ 240   2      //DataScope_Get_Channel_Data( 100*cos(a), 3 );
+ 241   2      //DataScope_Get_Channel_Data( 100*a , 4 );
+ 242   2      //DataScope_Get_Channel_Data(0, 5 );
+ 243   2      //DataScope_Get_Channel_Data(0 , 6 );
+ 244   2      //DataScope_Get_Channel_Data(0, 7 );
+ 245   2      //DataScope_Get_Channel_Data( 0, 8 );
+ 246   2      //DataScope_Get_Channel_Data(0, 9 );
+ 247   2      //DataScope_Get_Channel_Data( 0 , 10);
+ 248   2      //Send_Count = DataScope_Data_Generate(1);
+ 249   2      //               
+ 250   2      //               for( ii = 0 ; ii < Send_Count; ii++) 
+ 251   2      //    {
+ 252   2      //     
+ 253   2      //    SBUF = DataScope_OutPut_Buffer[ii]; 
+ 254   2      //      while(1){if(TI==1){TI=0;TI=TI;break;}}
+ 255   2      //    }
+ 256   2          //    for(i=0;i<3000;i++);  
+ 257   2        //  for(i=0;i<30000;i++); 
+ 258   2        
+ 259   2      //char(i1f)//串口1 发送 到PC机监视读MPU6050及给定
+ 260   2      //            {   
+ 261   2      //            case 0:TTTf1=0;i1f=10;break;
+ 262   2      //                case 10:if(TTTf1>20) {i1f=11;}break;
+ 263   2      //                //显示傅肖的给定数据 遥控器发送来的
+ 264   2      //                case 11:SBUF=0XFB;i1f=13;break;// 1
+ 265   2      //                
+ 266   2      //               case 13: if(TI){TI=0;i1f=15;}break;
+ 267   2      //                
+ 268   2      //                case 15:SBUF=up;i1f=17;break;// 2
+ 269   2      //                
+ 270   2      //               case 17: if(TI){TI=0;i1f=20;}else i1f=17;break;
+ 271   2      //               
+ 272   2      //               
+ 273   2      //              case 20:SBUF=ex_yaw;i1f=30;break;//3
+ 274   2      //               
+ 275   2      //               case 30:if(TI){TI=0;i1f=40;}else i1f=30;break;
+ 276   2      //               
+ 277   2      //               case 40:SBUF=ex_pitch;i1f=50;break;//4
+ 278   2      //                case 50: if(TI){TI=0;i1f=60;}break;
+ 279   2      //                   case 60:SBUF=ex_roll;i1f=70;break;//5
+ 280   2      //                case 70: if(TI){TI=0;i1f=80;}break;
+ 281   2      //               
+ 282   2      //               case 80:SBUF=key;i1f=90;break;//6
+ 283   2      //                case 90: if(TI){TI=0;i1f=100;}break;
+ 284   2      //                   case 100:SBUF=keyt;i1f=110;break;//7
+ 285   2      //                case 110: if(TI){TI=0;i1f=150;n=0;}break;
+ 286   2      //                
+ 287   2      //                  //显示易毅测量的数据 6050来的 rc_roll,rc_yaw,rc_gyro_x,rc_gyro_y,rc_gyro_z
+ 288   2      //                case 150:SBUF=BUF[8];i1f=180;break;//8-1
+ 289   2      //                
+ 290   2      //               case 180: if(TI){TI=0;i1f=200;}break;
+ 291   2      //                
+ 292   2      //                  case 200:SBUF=BUF[9];i1f=217;break;//8-1
+ 293   2      //                
+ 294   2      //               case 217: if(TI){TI=0;i1f=220;}break;
+ 295   2      //              
+ 296   2      //               case 220:SBUF=BUF[10];i1f=230;break;     //9-2      
+ 297   2      //               case 230:if(TI){TI=0;i1f=240;}break;
+C51 COMPILER V9.52.0.0   MAIN                                                              09/10/2017 12:03:09 PAGE 6   
+
+ 298   2      //               
+ 299   2      //             case 240:SBUF=BUF[11];i1f=250;break;//10-3
+ 300   2      //              case 250: if(TI){TI=0;i1f=260;}break;
+ 301   2      //                 case 260:SBUF=BUF[12];i1f=270;break;//11-4
+ 302   2      //                case 270: if(TI){TI=0;i1f=280;}break;
+ 303   2      //               
+ 304   2      //               case 280:SBUF=BUF[13];i1f=290;break;//12-5
+ 305   2      //                case 290: if(TI){TI=0;i1f=357;}break;
+ 306   2      //                //输出电机                
+ 307   2      //                case 357:SBUF=0xFE;i1f=360;break;
+ 308   2      //                case 360: if(TI){TI=0;i1f=0;n=0;}break;
+ 309   2      //                
+ 310   2      //                  
+ 311   2      //                                      
+ 312   2      //            }     
+ 313   2      //              
+ 314   2                    
+ 315   2        
+ 316   2      
+ 317   2      }  //for wile
+ 318   1        
+ 319   1      }  // for main
+ 320          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1225    ----
+   CONSTANT SIZE    =    720    ----
+   XDATA SIZE       =     57    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      1    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

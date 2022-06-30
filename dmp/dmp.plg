@@ -1,0 +1,28 @@
+<html>
+<body>
+<pre>
+<h1>µVision Build Log</h1>
+<h2>Project:</h2>
+C:\Users\asus\Desktop\dmp\dmp.uvproj
+Project File Date:  08/30/2017
+
+<h2>Output:</h2>
+Rebuild target 'Target 1'
+compiling main.c...
+compiling i2c.c...
+compiling DataScope_DP.C...
+compiling IMU.c...
+linking...
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    SEGMENT: ?CO?MAIN
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    SEGMENT: ?PR?_WRITEBIT?I2C
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    SEGMENT: ?PR?_WRITEBITS?I2C
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    SEGMENT: ?PR?_READBIT?I2C
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    SEGMENT: ?PR?_READBITS?I2C
+Program Size: data=177.4 xdata=166 code=9817
+creating hex file from "dmp"...
+"dmp" - 0 Error(s), 5 Warning(s).

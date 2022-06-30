@@ -1,0 +1,6 @@
+"main.obj",
+"i2c.obj",
+"DataScope_DP.obj",
+"IMU.obj" 
+TO "dmp" 
+RAMSIZE(256) 
